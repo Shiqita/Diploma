@@ -149,9 +149,9 @@ end
 function res=dLambda(x,w,ro,teta,L)
     res=zeros(length(x));
     for i=1:length(x)
-       p1=(L(i)*f(x(i),ro))/df1(x(i),ro);
+       p1=(L(i)*f(x(i),ro))/df(x(i),ro);
        p2=-v2(x(i))*tan(w*x(i)+v2(x(i)+teta(i)));
-       res(i)=p1*p2;
+       res(i)=(p1*p2)/df();
     end    
 end
 %%                                                   end of real functions  

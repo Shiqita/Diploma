@@ -3,7 +3,7 @@
     % initial conditions
     t=0;y=0;
     linet=(0);liney=(0);
-    t0=t;tn=t0+4;y0=y;
+    t0=t;tn=t0+4;y0=y;y1=1.2;
     % step size=%f\n
     h=0.01;
     % tolerance
@@ -66,11 +66,12 @@
         linet=[linet t+h];
         liney=[liney ny];
     end
-    plot(linet,liney)
+  % plot(linet,liney)
     toc
     tic
-    solution=ode45(@mfun,(t0:h:tn),y0);
+    solution=ode45(@mfun,(t0:h:tn),[y0 y1]);
     disp(solution.x)
+    plot(solution.x,solution.y)
     toc
     function mf=mfun(t,y)
     mf=exp(y)-y*exp(t);

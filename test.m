@@ -1,7 +1,8 @@
 v1=(0)
 tic
-for i=1:1000
-   v1=[v1 2]; 
+n=2
+for i=1:n
+   v1=[v1 2] 
 end
 toc
 tic
