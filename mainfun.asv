@@ -128,30 +128,41 @@ function res=set_teta_omega(x,args)
     tmp=-V(x,tet)*om;
     res=[tet tmp];
 end
-%% R|f*Lambda|f*Lambda'
-function res=R(Omega)
+%% R|f*Lambda|f*Lambda' !!!!!!!!!!!!!!! start-1 <-|start+1 ->
+function res=R(Omega,start,endl)
     res=zeros(length(Omega));
-    res(end)=1;
-    for i=(length(Omega)-1):1
-        res(i)=Omega(i)*r;
+    res(start)=1;
+    if start>endl
+        
+        for i=start:endl
+            res(i)=Omega(i)*res(i+k);
+        end
+    else
+        for i=start:endl
+            res(i)=Omega(i+k)*res(i+k);
+        end
     end
 end
 
-function res=Lambda(r,x,w,ro,teta)
+function res=Lambda(x,w,ro,teta,r,start,endl)
     res=zeros(length(x));
-    for i=1:length(x)
+    for i=start:endl
         p1=(r(i)/v1(x(i)));
         p2=cos(w*x(i)+v2(i)+teta(i));
         res(i)=(p1*p2)/(f(x(i),ro))^(1/2);
     end
 end
 
-function res=dLambda(x,w,ro,teta,L)
+function res=dLambda(x,w,ro,teta,L,start,endl)
     res=zeros(length(x));
-    for i=1:length(x)
-       p1=(L(i)*f(x(i),ro))/df(x(i),ro);
-       p2=-v2(x(i))*tan(w*x(i)+v2(x(i)+teta(i)));
-       res(i)=(p1*p2)/df();
+    for i=start:endl
+       p1=(L(i)*f(x(i),ro)^(1/2))/df1(x(i),ro)^(1/2);
+       p2=-(v2(x(i))^2)*tan(w*x(i)+v2(x(i))+teta(i));
+       res(i)=p1*p2;
     end    
+end
+%% error check
+function res=check()
+    res=;
 end
 %%                                                   end of real functions  

@@ -15,14 +15,24 @@ n=lenght(xi);    %obshee kol-vo n v x0-x1
 
 %eps=;
 
-%% setup
-r=(length(xi));
-teta=zeros(length(xi));
-omega=zeros(length(xi));
-L=zeros(length(xi));
-dL=zeros(length(xi));
-
+%% setup 
+r=zeros(n);
+teta=zeros(n);
+omega=zeros(n);
+L=zeros(n);
+dL=zeros(n);
+%-------------
 teta(1)=-v2(0);
+%-------------
+
+r_=zeros(n);
+teta_=zeros(n);
+omega_=zeros(n);
+L_=zeros(n);
+dL_=zeros(n);
+%-------------
+teta_(end)=-pi/2;
+%-------------
 
 X=set_x(xi,ro); % poly4aem iz XI
 
@@ -39,24 +49,24 @@ temp=deval(sol,sol.x);
 omega(1)=temp(2,end);
 teta(1)=temp(1,end);
     
-for i=2:n
+for i=2:n-1
     args=[ro h l w teta(i-1) 1];
     sol=ode45(@() set_teta_omega(x,args),(X(i):X(i+1)),args,options);
     temp=deval(sol,sol.x);
     omega(i)=temp(2,end);
     teta(i)=temp(1,end);
 end
-%r
-r=R(omega);
+%r <-
+r=R(omega,n,1);
 
 disp('TETA+OMEGA+r')
 toc
 
 tic
 
-L=Lambda();
+L=Lambda(x,w,ro,teta,r,start,endl);
 
-dL=dLambda();
+dL=dLambda(x,w,ro,teta,L,start,endl);
 
 toc
 %% X|f|f'|f''                             real  functions
@@ -117,7 +127,7 @@ end
 function res=V(x,tet)
     %p1=([v1(x)^2)]'/(v1(x))*cos(2*psi(x,w,tet));
     % [v1(x)^2]'   !!!!!!!!
-    p2=((U()/v1(x)^2)-v1(x)^2)*sin(2*psi(x,w,tet));
+    p2=((U(x,ro,h,l,w)/v1(x)^2)-v1(x)^2)*sin(2*psi(x,w,tet));
     res=(p1+p2)/2;
 end
 
@@ -128,30 +138,42 @@ function res=set_teta_omega(x,args)
     tmp=-V(x,tet)*om;
     res=[tet tmp];
 end
-%% R|f*Lambda|f*Lambda'
-function res=R(Omega)
+%% R|f*Lambda|f'*Lambda' !! start-1 <-  !!!  start+1 -> !!
+function res=R(Omega,start,endl)
     res=zeros(length(Omega));
-    res(end)=1;
-    for i=(length(Omega)-1):1
-        res(i)=Omega(i)*r;
+    res(start)=1;
+    if start>endl
+        k=1; %start=n-1 endl=1
+        for i=start-1:endl
+            res(i)=Omega(i+k)*res(i+k);
+        end
+    else
+        k=-1; %start=2 endl=n
+        for i=start+1:endl
+            res(i)=Omega(i+k)*res(i+k);
+        end
     end
 end
 
-function res=Lambda(r,x,w,ro,teta)
+function res=Lambda(x,w,ro,teta,r,start,endl)
     res=zeros(length(x));
-    for i=1:length(x)
+    for i=start:endl
         p1=(r(i)/v1(x(i)));
         p2=cos(w*x(i)+v2(i)+teta(i));
         res(i)=(p1*p2)/(f(x(i),ro))^(1/2);
     end
 end
 
-function res=dLambda(x,w,ro,teta,L)
+function res=dLambda(x,w,ro,teta,L,start,endl)
     res=zeros(length(x));
-    for i=1:length(x)
-       p1=(L(i)*f(x(i),ro))/df1(x(i),ro);
-       p2=-v2(x(i))*tan(w*x(i)+v2(x(i)+teta(i)));
+    for i=start:endl
+       p1=(L(i)*f(x(i),ro)^(1/2))/df1(x(i),ro)^(1/2);
+       p2=-(v2(x(i))^2)*tan(w*x(i)+v2(x(i))+teta(i));
        res(i)=p1*p2;
     end    
+end
+%% error check
+function res=check()
+    res=;
 end
 %%                                                   end of real functions  
