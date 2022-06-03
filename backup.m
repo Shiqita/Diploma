@@ -23,7 +23,8 @@ omega=zeros(n,1);
 %dL=zeros(n,1);
 %-------------
 arg=[0 ro w l h];
-teta(1)=pi/2-v2(arg);                                          
+teta(1)=pi/2-v2(arg);
+disp(teta(1))                                             
 %-------------
 
 %r_=zeros(n,1);
@@ -125,14 +126,28 @@ end
 %% q|U|psi podgotovka k TETA|OMEGA
 function qx=q(x,ro,h,l,w)
     qx=h*ro^2-l*(ro^2)*(x^2+ro^2)+(w^2)*(x^2+ro^2)^2;
+    disp('qx');
+    disp(qx);
 end
 
 function ux=U(arg)
     x=arg(1);ro=arg(2);w=arg(3);l=arg(4);h=arg(5);
 
     p1=q(x,h,l,ro,w)/(f(x,ro))^2;
+    
+    disp('qx');
+    disp(qx);
+
     p2=-(df2(x,ro))/(2*f(x,ro));
+
+    disp('qx');
+    disp(qx);
+
     p3=(df1(x,ro)^2)/(4*f(x,ro)^2);
+
+    disp('qx');
+    disp(qx);
+
     ux=p1+p2+p3;
 end
 
