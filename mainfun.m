@@ -1,7 +1,7 @@
 %function mainfun()
 
 %initial vars
-
+global h l w ro
 xi=(2:17:1000);
 
 %sobstvenniey zna4eniya
@@ -16,21 +16,21 @@ n=length(xi);
 %eps=;
 
 %% setup 
-r=zeros(n);
-teta=zeros(n);
-omega=zeros(n);
-L=zeros(n);
-dL=zeros(n);
+%r=zeros(n,1);
+teta=zeros(n,1);
+omega=zeros(n,1);
+%L=zeros(n,1);
+%dL=zeros(n,1);
 %-------------
 arg=[0 ro w l h];
 teta(1)=-v2(arg);
 %-------------
 
-r_=zeros(n);
-teta_=zeros(n);
-omega_=zeros(n);
-L_=zeros(n);
-dL_=zeros(n);
+%r_=zeros(n,1);
+teta_=zeros(n,1);
+omega_=zeros(n,1);
+%L_=zeros(n,1);
+%dL_=zeros(n,1);
 %-------------
 teta_(n)=-pi/2;
 %-------------
@@ -44,15 +44,19 @@ options=odeset('RelTol',eps,'Refine',10,'Stats','on');
 %TETA_OMEGA ->
 tic
 
-args=[ro h l w teta(1) 1];
-sol=ode45(set_teta_omega(x,args),(X(1):X(2)),args,options);
+%args=[ro h l w teta(1) 1];
+toc
+tic
+sol=ode45(@(x,y) set_teta_omega(x,y),(X(1):X(2)),[teta(1) 1],options);
+toc
 temp=deval(sol,sol.x);
 omega(1)=temp(2,end);
 teta(1)=temp(1,end);
     
 for i=2:n-1
-    args=[ro h l w teta(i-1) 1];
-    sol=ode45(set_teta_omega(x,args),(X(i):X(i+1)),args,options);
+    disp(i)
+    %args=[ro h l w teta(i-1) 1];
+    sol=ode45(@(x,y) set_teta_omega(x,y),(X(i):X(i+1)),[teta(i-1) 1],options);
     temp=deval(sol,sol.x);
     omega(i)=temp(2,end);
     teta(i)=temp(1,end);
@@ -63,23 +67,21 @@ disp('TETA+OMEGA+r')
 toc
 %L L' ->
 tic
-L=Lambda(x,ro,w,l,h,teta,r,1,n);
-dL=dLambda(x,ro,w,l,h,teta,L,1,n);
+L=Lambda(X,ro,w,l,h,teta,r,1,n);
+dL=dLambda(X,ro,w,l,h,teta,L,1,n);
 toc
 
 %%
 %TETA_OMEGA <-
 tic
 
-args=[ro h l w teta_(n) 1];
-sol_=ode45(set_teta_omega(x,args),(X(n):X(n-1)),args,options);
+sol_=ode45(@(x,y) set_teta_omega(x,y),(X(n):X(n-1)),[teta_(n) 1],options);
 temp=deval(sol_,sol_.x);
 omega_(1)=temp(2,end);
 teta_(1)=temp(1,end);
     
 for i=n-1:1
-    args(5)=teta_(i+1);
-    sol_=ode45(set_teta_omega(x,args),(X(i+1):X(i)),args,options);
+    sol_=ode45(@(x,y) set_teta_omega(x,y),(X(i+1):X(i)),[teta_(i+1) 1],options);
     temp=deval(sol_,sol_.x);
     omega_(i)=temp(2,end);
     teta_(i)=temp(1,end);
@@ -90,22 +92,16 @@ disp('TETA+OMEGA+r')
 toc
 %L L' <-
 tic
-L_=Lambda(x,ro,w,l,h,teta_,r_,n,1);
-dL_=dLambda(x,ro,w,l,h,teta_,L_,n,1);
+L_=Lambda(X,ro,w,l,h,teta_,r_,n,1);
+dL_=dLambda(X,ro,w,l,h,teta_,L_,n,1);
 toc
 
 % massiv must be filled with ~1
 disp(check(r,r_,tet,tet_));
 
-
-
-   % arg=[x ro w l h];  v funciyah
- 
-
-
 %% X|f|f'|f''                             real  functions
 function res=set_x(xi,ro)
-    res=zeros(length(xi));
+    res=zeros(length(xi),1);
     for i=1:length(xi)
         res(i)=sqrt(xi(i)-ro^2);
     end
@@ -148,8 +144,8 @@ function ps=psi(arg,teta)
 end
 %% TETA|OMEGA
 % TETA
-function res=TETA(arg,args)
-    tet=args(5);
+function res=TETA(arg)
+    w=arg(3);tet=arg(end);arg(end)=[];
 
     p1=((U(arg)/(v2(arg))^2-w-dv2(arg))*cos(psi(arg,tet))^2);
     p2=(v1(arg)^2-w-dv2(arg))*sin(psi(arg,tet))^2;
@@ -158,17 +154,22 @@ function res=TETA(arg,args)
 end
 
 function res=V(arg,tet)
+
     p1=(dv1(arg))/(v1(arg))*cos(2*psi(arg,tet));
     p2=((U(arg)/v1(arg)^2)-v1(arg)^2)*sin(2*psi(arg,tet));
     res=(p1+p2)/2;
 end
 
-function res=set_teta_omega(x,args)
-    arg=[x args(1) args(4) args(3) args(2)];  
-    om=args(end);
-    args(end)=[];
+function res=set_teta_omega(x,y)
+    global ro h w l
     
-    tet=TETA(arg,args);
+    om=y(2);
+    arg=[x ro w l h];
+    %arg=[x args(1) args(4) args(3) args(2)];  
+    %om=args(end);
+    %args(end)=[];
+    
+    tet=TETA([arg y(1)]);
     tmp=-V(arg,tet)*om;
     res=[tet; tmp];
 end
@@ -189,7 +190,7 @@ function res=R(Omega,start,endl)
 end
 
 function res=Lambda(x,ro,w,l,h,teta,r,start,endl)
-    res=zeros(length(x));
+    res=zeros(length(x),1);
     arg=[0 ro w l h];
     for i=start:endl
         arg(1)=x(i);
@@ -200,7 +201,7 @@ function res=Lambda(x,ro,w,l,h,teta,r,start,endl)
 end
 
 function res=dLambda(x,ro,w,l,h,teta,L,start,endl)
-    res=zeros(length(x));
+    res=zeros(length(x),1);
     arg=[0 ro w l h];
     for i=start:endl
        arg(1)=x(i);
@@ -211,7 +212,7 @@ function res=dLambda(x,ro,w,l,h,teta,L,start,endl)
 end
 %% error check 
 function res=check(r,r_,tet,tet_)
-    res=zeros(length(r));
+    res=zeros(length(r),1);
     for i=1:length(r)
         res(i)=r(i)*r_(i)*sin(tet(i)-tet_(i));
     end
@@ -277,5 +278,4 @@ function res=R_2(w,ro,l,h)
 end
 function res=R_2_(w,ro,l,h)
     res=R_2(w,ro,l,h)+R_1(w,ro,l)*ro^2;
-end
-%%                                              
+end                                       
