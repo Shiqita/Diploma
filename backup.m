@@ -1,15 +1,14 @@
 %function mainfun()
-
 %initial vars
-global h l w ro
-xi=(2:17:1000);
+
+xi=(2:250:35000);
 
 %sobstvenniey zna4eniya
-h=575.35; 
-l=1228.06; 
+h=5; 
+l=12; 
 
 ro=sqrt(2); 
-w=sqrt(1000); 
+w=sqrt(10); 
 
 n=length(xi);
 
@@ -23,8 +22,7 @@ omega=zeros(n,1);
 %dL=zeros(n,1);
 %-------------
 arg=[0 ro w l h];
-teta(1)=pi/2-v2(arg);
-disp(teta(1))                                             
+teta(1)=pi/2-v2(arg);                                          
 %-------------
 
 %r_=zeros(n,1);
@@ -39,7 +37,7 @@ teta_(n)=-pi/2;
 X=set_x(xi,ro); % poly4aem iz XI
 
 %NormControl 'on' 'off' - mnogocomponentnoe vi4islene oshibki|refine n? 'RelTol',eps,
-options=odeset('Refine',10,'Stats','on');
+options=odeset('Refine',4,'Stats','on');
 
 %%
 %TETA_OMEGA ->
@@ -48,24 +46,28 @@ tic
 %args=[ro h l w teta(1) 1];
 toc
 tic
-sol=ode23tb(@(x,y) set_teta_omega(x,y),(X(1):X(2)),[teta(1) 1],options);
+sol=ode45(@(x,y) set_teta_omega(x,y,ro,w,h,l),(X(1):X(2)),[teta(1) 1],options);
 toc
 temp=deval(sol,sol.x);
 omega(1)=temp(2,end);
 teta(1)=temp(1,end);
     
+
 for i=2:n-1
-    %args=[ro h l w teta(i-1) 1];
-    sol=ode23tb(@(x,y) set_teta_omega(x,y),(X(i):X(i+1)),[teta(i-1) 1],options);
+    tic
+    disp(i)
+    sol=ode45(@(x,y) set_teta_omega(x,y,ro,w,h,l),(X(i):X(i+1)),[teta(i-1) 1],options);
     temp=deval(sol,sol.x);
     omega(i)=temp(2,end);
     teta(i)=temp(1,end);
-    disp(i)
+    toc
 end
+
 %r <-
 r=R(omega,n,1);
 disp('TETA+OMEGA+r')
 toc
+
 %L L' ->
 tic
 L=Lambda(X,ro,w,l,h,teta,r,1,n);
@@ -76,21 +78,23 @@ toc
 %TETA_OMEGA <-
 tic
 
-sol_=ode23tb(@(x,y) set_teta_omega(x,y),(X(n):X(n-1)),[teta_(n) 1],options);
+sol_=ode45(@(x,y) set_teta_omega(x,y,ro,w,h,l),(X(n):X(n-1)),[teta_(n) 1],options);
 temp=deval(sol_,sol_.x);
-omega_(1)=temp(2,end);
-teta_(1)=temp(1,end);
-    
+omega_(n)=temp(2,end);
+teta_(n)=temp(1,end);
+
 for i=n-1:1
-    sol_=ode23tb(@(x,y) set_teta_omega(x,y),(X(i+1):X(i)),[teta_(i+1) 1],options);
+    sol_=ode45(@(x,y) set_teta_omega(x,y,ro,w,h,l),(X(i+1):X(i)),[teta_(i+1) 1],options);
     temp=deval(sol_,sol_.x);
     omega_(i)=temp(2,end);
     teta_(i)=temp(1,end);
 end
+
 %r ->
 r_=R(omega_,1,n);
 disp('TETA+OMEGA+r')
 toc
+
 %L L' <-
 tic
 L_=Lambda(X,ro,w,l,h,teta_,r_,n,1);
@@ -100,6 +104,7 @@ toc
 % massiv must be filled with ~1
 disp(check(r,r_,tet,tet_));
 
+%%                                              main  functions
 %% X|f|f'|f''                             real  functions
 function res=set_x(xi,ro)
     res=zeros(length(xi),1);
@@ -126,28 +131,14 @@ end
 %% q|U|psi podgotovka k TETA|OMEGA
 function qx=q(x,ro,h,l,w)
     qx=h*ro^2-l*(ro^2)*(x^2+ro^2)+(w^2)*(x^2+ro^2)^2;
-    disp('qx');
-    disp(qx);
 end
 
 function ux=U(arg)
     x=arg(1);ro=arg(2);w=arg(3);l=arg(4);h=arg(5);
 
     p1=q(x,h,l,ro,w)/(f(x,ro))^2;
-    
-    disp('qx');
-    disp(qx);
-
     p2=-(df2(x,ro))/(2*f(x,ro));
-
-    disp('qx');
-    disp(qx);
-
     p3=(df1(x,ro)^2)/(4*f(x,ro)^2);
-
-    disp('qx');
-    disp(qx);
-
     ux=p1+p2+p3;
 end
 
@@ -161,17 +152,10 @@ end
 % TETA
 function res=TETA(arg)
     w=arg(3);tet=arg(end);arg(end)=[];
-    disp(arg)
 
     p1=((U(arg)/(v2(arg))^2-w-dv2(arg))*cos(psi(arg,tet))^2);
-    disp('p1:');
-    disp(p1);
     p2=(v1(arg)^2-w-dv2(arg))*sin(psi(arg,tet))^2;
-    disp('p2:');
-    disp(p2);
     p3=-((dv1(arg))/(2*v1(arg)^2))*sin(2*psi(arg,tet));
-    disp('p3:');
-    disp(p3);
     res=p1+p2+p3;
 end
 
@@ -182,21 +166,15 @@ function res=V(arg,tet)
     res=(p1+p2)/2;
 end
 
-function res=set_teta_omega(x,y)
-    global ro h w l
-    
+function res=set_teta_omega(x,y,ro,w,l,h)
     om=y(2);
     arg=[x ro w l h];
     %arg=[x args(1) args(4) args(3) args(2)];  
     %om=args(end);
     %args(end)=[];
     
-    disp('x:');disp(x);
-
     tet=TETA([arg y(1)]);
-    disp('teta:');disp(tet);
     tmp=-V(arg,tet)*om;
-    disp('omega:');disp(tmp);
     res=[tet; tmp];
 end
 %% R|f*Lambda|f'*Lambda' !! start-1 <-  !!!  start+1 -> !!
@@ -304,4 +282,5 @@ function res=R_2(w,ro,l,h)
 end
 function res=R_2_(w,ro,l,h)
     res=R_2(w,ro,l,h)+R_1(w,ro,l)*ro^2;
-end                                       
+end   
+%%                                             end of main functions 
