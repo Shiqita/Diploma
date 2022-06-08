@@ -1,217 +1,201 @@
 %function mainfun()
 %initial vars
 
-xi=(2:250:35000);
-
+%steps=10;
 %sobstvenniey zna4eniya
-h=5; 
-l=12; 
+h=1241.89;
+l=1832.21;
 
-ro=sqrt(2); 
-w=sqrt(10); 
+ro=sqrt(2);
+w=sqrt(1000);
 
-n=length(xi);
+eps=1e-02;
+xi=(ro^2:0.1:18);
 
-%eps=;
+X=set_x(xi,ro);
+n=length(X);
 
 %% setup 
-%r=zeros(n,1);
+temp_R=set_R(w,ro,l,h); %Set R1 R2 ^R2
+P1=temp_R(1);
+P2=temp_R(2);
+P3=temp_R(3);
+%------------- Set df1 df2 d(sqrt(f1))
+arg=[0 ro w l h temp_R];
+F2=df1();
+F3=df2();
+F21=df12();
+%-------------
 teta=zeros(n,1);
 omega=zeros(n,1);
-%L=zeros(n,1);
-%dL=zeros(n,1);
+omega(1)=1;
+teta(1)=pi/2-v2(arg);      %pi/2                                    
 %-------------
-arg=[0 ro w l h];
-teta(1)=pi/2-v2(arg);                                          
-%-------------
-
-%r_=zeros(n,1);
 teta_=zeros(n,1);
 omega_=zeros(n,1);
-%L_=zeros(n,1);
-%dL_=zeros(n,1);
-%-------------
+omega_(n)=1;
 teta_(n)=-pi/2;
 %-------------
 
-X=set_x(xi,ro); % poly4aem iz XI
-
-%NormControl 'on' 'off' - mnogocomponentnoe vi4islene oshibki|refine n? 'RelTol',eps,
-options=odeset('Refine',4,'Stats','on');
+options=odeset('Stats','on','AbsTol',1e-06,'RelTol',1e-03,'Refine','8');
 
 %%
 %TETA_OMEGA ->
 tic
-
-%args=[ro h l w teta(1) 1];
-toc
-tic
-sol=ode45(@(x,y) set_teta_omega(x,y,ro,w,h,l),(X(1):X(2)),[teta(1) 1],options);
-toc
-temp=deval(sol,sol.x);
-omega(1)=temp(2,end);
-teta(1)=temp(1,end);
+for i=1:n-1
+    y0=[teta(i) 1];
+    tspan=[X(i) X(i+1)];
+    disp(tspan);
     
-
-for i=2:n-1
-    tic
-    disp(i)
-    sol=ode45(@(x,y) set_teta_omega(x,y,ro,w,h,l),(X(i):X(i+1)),[teta(i-1) 1],options);
+    sol=ode45(@(x,y) set_teta_omega(x,y,ro,w,l,h,P1,P2,P3,F2,F3),tspan,y0,options);
     temp=deval(sol,sol.x);
-    omega(i)=temp(2,end);
-    teta(i)=temp(1,end);
-    toc
+    omega(i+1)=temp(2,end);
+    teta(i+1)=temp(1,end);
 end
+toc
 
 %r <-
 r=R(omega,n,1);
-disp('TETA+OMEGA+r')
-toc
-
 %L L' ->
 tic
-L=Lambda(X,ro,w,l,h,teta,r,1,n);
-dL=dLambda(X,ro,w,l,h,teta,L,1,n);
-toc
+L=Lambda(X,ro,w,l,h,P1,P2,P3,teta,r,1,n);
+dL=dLambda(X,ro,w,l,h,P1,P2,P3,teta,L,F21,1,n);
 
 %%
 %TETA_OMEGA <-
 tic
-
-sol_=ode45(@(x,y) set_teta_omega(x,y,ro,w,h,l),(X(n):X(n-1)),[teta_(n) 1],options);
-temp=deval(sol_,sol_.x);
-omega_(n)=temp(2,end);
-teta_(n)=temp(1,end);
-
-for i=n-1:1
-    sol_=ode45(@(x,y) set_teta_omega(x,y,ro,w,h,l),(X(i+1):X(i)),[teta_(i+1) 1],options);
+for i=n-1:-1:1
+    y0=[teta(i+1) 1];
+    tspan=[X(i+1) X(i)];
+    disp(tspan);
+    
+    sol_=ode45(@(x,y) set_teta_omega(x,y,ro,w,l,h,P1,P2,P3,F2,F3),tspan,y0,options);
     temp=deval(sol_,sol_.x);
     omega_(i)=temp(2,end);
     teta_(i)=temp(1,end);
 end
+toc
 
 %r ->
 r_=R(omega_,1,n);
-disp('TETA+OMEGA+r')
-toc
-
 %L L' <-
-tic
-L_=Lambda(X,ro,w,l,h,teta_,r_,n,1);
-dL_=dLambda(X,ro,w,l,h,teta_,L_,n,1);
-toc
+L_=Lambda(X,ro,w,l,h,P1,P2,P3,teta_,r_,n,1);
+dL_=dLambda(X,ro,w,l,h,P1,P2,P3,teta_,L_,F21,n,1);
 
 % massiv must be filled with ~1
-disp(check(r,r_,tet,tet_));
+check_R=check(r,r_,teta,teta_);
 
+plot(xi,L);
+hold;
+%plot(X,dL)
+plot(xi,L_)
+%plot(X,dL_)
 %%                                              main  functions
-%% X|f|f'|f''                             real  functions
-function res=set_x(xi,ro)
-    res=zeros(length(xi),1);
-    for i=1:length(xi)
-        res(i)=sqrt(xi(i)-ro^2);
-    end
+%% X|f|f'|f''                             
+function res=f(x, ro)
+    res=sqrt((x^2+ro^2)*(x^2+ro^2-1));
 end
-
-function fx=f(x, ro)
-    fx=((x^2+ro^2)*(x^2+ro^2-1))^(1/2);
+function res=f_1(x, ro)
+    res=(x^2+ro^2)*(x^2+ro^2-1);
 end
-
-function res=df1(xx,roo)
+function res=df1()
+    res=(2*x*(ro^2 + x^2) + 2*x*(ro^2 + x^2 - 1))/(2*((ro^2 + x^2)*(ro^2 + x^2 - 1))^(1/2));
     syms f(x, ro)
-    fx1=diff(f(x,ro),x,1);
-    res=double(subs(fx1,{x,ro},{xx, roo}));
+    res=diff(f(x,ro),x,1);
 end
-
-function res=df2(xx,roo)
+function res=df12()
+    res=(2*x*(ro^2 + x^2) + 2*x*(ro^2 + x^2 - 1))/(4*((ro^2 + x^2)*(ro^2 + x^2 - 1))^(3/4));
     syms f(x, ro)
-    fx2=diff(f(x,ro),x,2);
-    res=double(subs(fx2,{x,ro},{xx, roo}));
+    res=diff(sqrt(f(x,ro)),x,1);
 end
-%% q|U|psi podgotovka k TETA|OMEGA
-function qx=q(x,ro,h,l,w)
-    qx=h*ro^2-l*(ro^2)*(x^2+ro^2)+(w^2)*(x^2+ro^2)^2;
-end
-
-function ux=U(arg)
-    x=arg(1);ro=arg(2);w=arg(3);l=arg(4);h=arg(5);
-
-    p1=q(x,h,l,ro,w)/(f(x,ro))^2;
-    p2=-(df2(x,ro))/(2*f(x,ro));
-    p3=(df1(x,ro)^2)/(4*f(x,ro)^2);
-    ux=p1+p2+p3;
-end
-
-%peredaem w-omega o-teta(end)
-function ps=psi(arg,teta)
-    x=arg(1);
-    w=arg(3);
-    ps=w*x+v2(arg)+teta;
+function res=df2()
+    res=(4*ro^2 + 12*x^2-2)/(2*((ro^2 + x^2)*(ro^2 + x^2 - 1))^(1/2))-(2*x(ro^2+x^2)+2*x*(ro^2+x^2-1))^2/(4*((ro^2+x^2)*(ro^2+x^2-1))^(3/2))
+    syms f(x, ro)
+    res=diff(f(x,ro),x,2);
 end
 %% TETA|OMEGA
-% TETA
-function res=TETA(arg)
-    w=arg(3);tet=arg(end);arg(end)=[];
-
-    p1=((U(arg)/(v2(arg))^2-w-dv2(arg))*cos(psi(arg,tet))^2);
-    p2=(v1(arg)^2-w-dv2(arg))*sin(psi(arg,tet))^2;
-    p3=-((dv1(arg))/(2*v1(arg)^2))*sin(2*psi(arg,tet));
-    res=p1+p2+p3;
-end
-
-function res=V(arg,tet)
-
-    p1=(dv1(arg))/(v1(arg))*cos(2*psi(arg,tet));
-    p2=((U(arg)/v1(arg)^2)-v1(arg)^2)*sin(2*psi(arg,tet));
-    res=(p1+p2)/2;
-end
-
-function res=set_teta_omega(x,y,ro,w,l,h)
-    om=y(2);
-    arg=[x ro w l h];
-    %arg=[x args(1) args(4) args(3) args(2)];  
-    %om=args(end);
-    %args(end)=[];
+function res=set_teta_omega(x,y,ro,w,l,h,P1,P2,P3,f1,f2,dv11,dv22)   
+    arg=[x ro w l h P1 P2 P3];
+%v1|v2----------------------------------
+    V1=(v1(arg));
+    V2=(v2(arg));
+%dv1|dv2--------------------------------
+    DV1=dV1(dv11,arg);    
+    DV2=dV2(dv22,arg);
+%psi------------------------------------
+    psi=w*x+V2+y(1);
+%U--------------------------------------
+    K0=f(x,ro);
+    K1=f_1(x,ro);
+    K2=double(subs(f1,{'x','ro'},{x, ro}));
+    K3=double(subs(f2,{'x','ro'},{x, ro})); 
     
-    tet=TETA([arg y(1)]);
-    tmp=-V(arg,tet)*om;
-    res=[tet; tmp];
+    q=(h*ro^2)-(l*(ro^2))*(x^2+ro^2)+(w^2)*(x^2+ro^2)^2;
+    
+    U=(q/K1)-(K3/(2*K0))+((K2^2)/(4*K1));
+%TETA-----------------------------------    
+    t1=(((U/V1)-w-DV2)*(cos(psi))^2);
+    t2=(V1-w-DV2)*(sin(psi))^2;
+    t3=-(DV1/(2*V1))*sin(2*psi);
+%---------------------------------------    
+    F1=t1+t2+t3;   
+%V--------------------------------------        
+    Om1=(DV1/V1)*cos(2*psi);
+    Om2=((U/V1)-V1)*sin(2*psi);
+%---------------------------------------    
+    F2=-((Om1+Om2)/2)*y(2);
+%---------------------------------------
+    res=[F1; F2]; 
 end
 %% R|f*Lambda|f'*Lambda' !! start-1 <-  !!!  start+1 -> !!
 function res=R(Omega,start,endl)
     res(start)=1;
     if start>endl
         k=1; %start=n-1 endl=1
-        for i=start-k:endl
+        for i=start-k:-k:endl
             res(i)=Omega(i+k)*res(i+k);
         end
     else
         k=-1; %start=2 endl=n
-        for i=start-k:endl
+        for i=start-k:-k:endl
             res(i)=Omega(i+k)*res(i+k);
         end
     end
 end
 
-function res=Lambda(x,ro,w,l,h,teta,r,start,endl)
+function res=Lambda(x,ro,w,l,h,P1,P2,P3,tet,rr,start,endl)
     res=zeros(length(x),1);
-    arg=[0 ro w l h];
-    for i=start:endl
+    arg=[0 ro w l h P1 P2 P3];
+    if start>endl
+        k=-1;
+    else
+        k=1;
+    end
+    for i=start:k:endl
         arg(1)=x(i);
-        p1=(r(i)/v1(arg));
-        p2=cos(w*x(i)+v2(arg)+teta(i));
-        res(i)=(p1*p2)/(f(x(i),ro))^(1/2);
+        psi=w*x(i)+v2(arg)+tet(i);
+        
+        temp=(rr(i)/sqrt(v1(arg)))*cos(psi);        %edinstvennoe mesto gde v1 ne v ^2
+        res(i)=temp/sqrt(f(x(i),ro));
     end
 end
 
-function res=dLambda(x,ro,w,l,h,teta,L,start,endl)
+function res=dLambda(x,ro,w,l,h,P1,P2,P3,tet,LL,f21,start,endl)
     res=zeros(length(x),1);
-    arg=[0 ro w l h];
-    for i=start:endl
+    arg=[0 ro w l h P1 P2 P3];
+    if start>endl
+        k=-1;
+    else
+        k=1;
+    end
+    for i=start:k:endl
        arg(1)=x(i);
-       p1=(L(i)*f(x(i),ro)^(1/2))/(df1(x(i),ro)^(1/2));
-       p2=-(v2(arg)^2)*tan(w*x(i)+v2(arg)+teta(i));
-       res(i)=p1*p2;
+       psi=w*x(i)+v2(arg)+tet(i);
+       dF1=double(subs(f21,{'x','ro'},{x(i), ro})); 
+       
+       p1=(LL(i)*f(x(i),ro)^(1/2))/(sqrt(dF1));
+       p2=-(v1(arg))*tan(psi);
+       res(i)=abs(p1*p2);
     end    
 end
 %% error check 
@@ -222,65 +206,56 @@ function res=check(r,r_,tet,tet_)
     end
 end
 %%                                             end of real functions
-%v1|v2|dv1|dv2
+%v1|v2
 function res=v1(arg)
-    x=arg(1);ro=arg(2);w=arg(3);l=arg(4);h=arg(5);
-
-    P1=R_1(w,ro,l);
-    P2=R_2_(w,ro,l,h);
-    P=1+P1/(x^2+ro^2)+P2/(x^2+ro^2)^2;
-    res=sqrt(w*P);
+    x=arg(1);ro=arg(2);w=arg(3);P1=arg(6);P3=arg(8);
+    
+    res=w*(1+P1/(x^2+ro^2)+P3/((x^2+ro^2)^2));
 end
 
 function res=v2(arg)
-    x=arg(1);ro=arg(2);w=arg(3);l=arg(4);h=arg(5);
+    x=arg(1);ro=arg(2);w=arg(3);P1=arg(6);P3=arg(8);
 
-    P1=R_1(w,ro,l);
-    P2=R_2_(w,ro,l,h);
-    p1=(P1/ro)*atan(x/ro);
-    tmp=x/(x^2+ro^2)+(1/ro)*atan(x/ro);
-    p2=(P2/(2*ro^2))*tmp;
-    res=w*(p1+p2);
+    res=w*((P1/ro)*atan(x/ro)+(P3/(2*ro^2))*(x/(x^2+ro^2)+(atan(x/ro)/ro)));
 end
 
+%%  d(v1^2)|d(v2)
 %dv1=(v1^2)'
 function res=dv1(arg)
-    x=arg(1);ro=arg(2);w=arg(3);l=arg(4);h=arg(5);   
-    
-    P1=R_1(w,ro,l);
-    P2=R_2_(w,ro,l,h);
+    x=arg(1);ro=arg(2);w=arg(3);P1=arg(6);P3=arg(8);   
 
-    p1=-(2*P1*x)/(x^2+ro^2)^2;
-    p2=-(4*P2*x)/(x^2+ro^2)^3;
-
-    res=w*(p1+p2);
+    res=-w*((2*P1*x)/(ro^2+x^2)^2+(4*P3*x)/(ro^2+x^2)^3);
 end
 function res=dv2(arg)
-    x=arg(1);ro=arg(2);w=arg(3);l=arg(4);h=arg(5);
-    
-    P1=R_1(w,ro,l);
-    P2=R_2_(w,ro,l,h);
-    
-    tmp=(1/(ro^2*((x^2)/(ro^2)+1))+(ro^2-x^2)/(x^2+ro^2)^2);
-    p2=(P2/(2*ro^2))*tmp;
-    p3=P1/(ro^2*((x^2)/(ro^2)+1));
-    
-    res=w*(p2+p3);
+    x=arg(1);ro=arg(2);w=arg(3);P1=arg(6);P3=arg(8);
+
+    res=w*(P1/(ro^2*(x^2/ro^2+1))+(P3*(1/(ro^2+x^2)-(2*x^2)/(ro^2+x^2)^2+1/(ro^2*(x^2/ro^2+1))))/(2*ro^2));
 end
 %% R1|R2|R2_
-%                eto L!
+%                eto  L!
 function res=R_1(w,ro,l)
-    res=(w^2-l*ro^2)/(2*w^2);
+    res=(w^2-(l*ro^2))/(2*w^2);
 end
-function res=R_2(w,ro,l,h)
-%         eto L!
-    p=R_1(w,ro,l);
+function res=R_2(w,ro,h,p)
     P1=(h*ro^2)/(2*w^2);
     P2=p*(1-ro^2-p/2);
-    P3=-(2*ro^2-1)/(4*w^2);
+    P3=-((2*ro^2-1)/(4*w^2));
     res=P1+P2+P3;
 end
-function res=R_2_(w,ro,l,h)
-    res=R_2(w,ro,l,h)+R_1(w,ro,l)*ro^2;
+function res=R_2_(ro,p1,p2)
+    res=p2+p1*ro^2;
 end   
-%%                                             end of main functions 
+function res=set_R(w,ro,l,h)
+    P1=R_1(w,ro,l);
+    P2=R_2(w,ro,h,P1);
+    P3=R_2_(ro,P1,P2);
+    
+    res=[P1 P2 P3];
+end
+function res=set_x(xi,ro)
+    res=zeros(length(xi),1);
+    for i=1:length(xi)
+        res(i)=sqrt(xi(i)-ro^2);
+    end
+end
+%%
